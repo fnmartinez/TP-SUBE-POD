@@ -6,6 +6,7 @@ import ar.edu.itba.pod.mmxivii.sube.common.CardServiceRegistry;
 import ar.edu.itba.pod.mmxivii.sube.common.Utils;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Scanner;
@@ -18,7 +19,7 @@ public class Main extends BaseMain
 	private final CardServiceRegistry cardServiceRegistry;
 	private final CardServiceImpl cardService;
 
-	private Main(@Nonnull String[] args) throws RemoteException, NotBoundException
+	private Main(@Nonnull String[] args) throws IOException, NotBoundException
 	{
 		super(args, DEFAULT_CLIENT_OPTIONS);
 		getRegistry();
