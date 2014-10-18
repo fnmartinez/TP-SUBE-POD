@@ -1,3 +1,7 @@
+*.iml
+.settings/
+.classpath
+.project
 target/
 .idea
 pom.xml.tag
