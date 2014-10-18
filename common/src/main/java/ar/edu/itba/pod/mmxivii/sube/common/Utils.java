@@ -29,7 +29,7 @@ public class Utils
 	public static final String PORT_O_D = "7242";
 	public static final String HOST_O_S = "h";
 	public static final String HOST_O_L = "host";
-	public static final String HOST_O_D = "localhost";
+	public static final String HOST_O_D = "127.0.0.1";
 	public static final String TRUE = "True";
 	public static final String FALSE = "FALSE";
 	public static final String MAX_THREADS_O_S = "t";
