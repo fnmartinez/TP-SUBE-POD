@@ -16,6 +16,7 @@ public class Utils
 	public static final String MAX_THREADS_JAVA_PROPERTY = "sun.rmi.transport.tcp.maxConnectionThreads";
 	public static final int MIN_DELAY = 200;
 	public static final int MAX_DELTA = 800;
+	public static final String AB = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	private static final Random RANDOM = new Random();
 	@SuppressWarnings("BooleanVariableAlwaysNegated")
 	private static boolean skipDelay = false;
@@ -34,7 +35,7 @@ public class Utils
 	public static final String FALSE = "FALSE";
 	public static final String MAX_THREADS_O_S = "t";
 	public static final String MAX_THREADS_O_L = "max-threads";
-	public static final String MAX_THREADS_O_D = "20";
+	public static final String MAX_THREADS_O_D = String.valueOf(Runtime.getRuntime().availableProcessors());
 	public static final String DELAY_O_S = "d";
 	public static final String DELAY_O_L = "delay";
 
@@ -157,6 +158,14 @@ public class Utils
 			throw new NullPointerException();
 		}
 		return reference;
+	}
+
+	public static String randomString( int len )
+	{
+		StringBuilder sb = new StringBuilder( len );
+		for( int i = 0; i < len; i++ )
+			sb.append( AB.charAt( RANDOM.nextInt(AB.length()) ) );
+		return sb.toString();
 	}
 
 	public static void skipDelay(final boolean value)
