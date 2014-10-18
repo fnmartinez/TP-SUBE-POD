@@ -38,21 +38,7 @@ public class Main extends BaseMain
 		cardClient = Utils.lookupObject(CARD_CLIENT_BIND);
 		if (cards.isEmpty()) {
 			for (int i = 0; i < MIN_CLIENTS; i++) {
-				executor.execute(new Runnable() {
-					@Override
-					public void run() {
-						String cardHolder = Utils.randomString(20).toString();
-						String cardLabel = Utils.randomString(20).toString();
-						try {
-							final Card card = cardClient.newCard(cardHolder, cardLabel);
-							cards.put(cardHolder, card);
-						} catch (RemoteException e) {
-							System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
-							e.printStackTrace();
-							Main.this.shutdown();
-						}
-					}
-				});
+				executor.execute(new NewCardTask(cards));
 			}
 		}
 	}
@@ -66,27 +52,11 @@ public class Main extends BaseMain
 	private void run() throws RemoteException
 	{
 		System.out.println("Starting Clients!");
-		final Scanner scan = new Scanner(System.in);
-		String line = null;
 		do {
 			int p = random.nextInt(100);
 
 			if (p < creationP) {
-				executor.execute(new Runnable() {
-					@Override
-					public void run() {
-						String cardHolder = Utils.randomString(20).toString();
-						String cardLabel = Utils.randomString(20).toString();
-						try {
-							final Card card = cardClient.newCard(cardHolder, cardLabel);
-							cards.put(cardHolder, card);
-						} catch (RemoteException e) {
-							System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
-							e.printStackTrace();
-							Main.this.shutdown();
-						}
-					}
-				});
+				executor.execute(new NewCardTask(cards));
 			} else {
 				if (cards.keySet().isEmpty()) continue;;
 				int keysQty = cards.keySet().size();
@@ -95,35 +65,9 @@ public class Main extends BaseMain
 				final Card card = cards.get(key);
 				final double ammount = Math.abs(random.nextDouble());
 				if (p < rechargeP) {
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-							synchronized (card) {
-								try {
-									cardClient.recharge(card.getId(), "recharge", ammount);
-								} catch (RemoteException e) {
-									System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
-									e.printStackTrace();
-									Main.this.shutdown();
-								}
-							}
-						}
-					});
+					executor.execute(new CardRechargeTask(card, ammount));
 				} else if (p < travelP) {
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-							synchronized (card) {
-								try {
-									cardClient.travel(card.getId(), "travel", ammount);
-								} catch (RemoteException e) {
-									System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
-									e.printStackTrace();
-									Main.this.shutdown();
-								}
-							}
-						}
-					});
+					executor.execute(new CardTravelTask(card, ammount));
 				} else throw new Error("Critical error. Not a possible value.");
 			}
 		} while(work);
@@ -134,5 +78,76 @@ public class Main extends BaseMain
 		work = false;
 	}
 
+	private class NewCardTask implements Runnable {
+
+		public final String cardHolder;
+		public final String cardLabel;
+		public final Map<String, Card> cards;
+
+		public NewCardTask(Map<String, Card> cards) {
+			this.cardHolder = Utils.randomString(20);
+			this.cardLabel = Utils.randomString(20);
+			this.cards = cards;
+		}
+
+		@Override
+		public void run() {
+			try {
+				final Card card = cardClient.newCard(cardHolder, cardLabel);
+				cards.put(cardHolder, card);
+			} catch (RemoteException e) {
+				System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+				e.printStackTrace();
+				Main.this.shutdown();
+			}
+		}
+	}
+
+	private class CardRechargeTask implements Runnable {
+
+		private final Card card;
+		private final double ammount;
+
+		private CardRechargeTask(Card card, double ammount) {
+			this.card = card;
+			this.ammount = ammount;
+		}
+
+		@Override
+		public void run() {
+			synchronized (card) {
+				try {
+					cardClient.recharge(card.getId(), "recharge", ammount);
+				} catch (RemoteException e) {
+					System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+					e.printStackTrace();
+					Main.this.shutdown();
+				}
+			}
+		}
+	}
+
+	private class CardTravelTask implements Runnable {
+		private final Card card;
+		private final double ammount;
+
+		private CardTravelTask(Card card, double ammount) {
+			this.card = card;
+			this.ammount = ammount;
+		}
+
+		@Override
+		public void run() {
+			synchronized (card) {
+				try {
+					cardClient.travel(card.getId(), "travel", ammount);
+				} catch (RemoteException e) {
+					System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+					e.printStackTrace();
+					Main.this.shutdown();
+				}
+			}
+		}
+	}
 
 }
