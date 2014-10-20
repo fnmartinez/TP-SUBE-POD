@@ -12,7 +12,6 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -71,7 +70,6 @@ public class Main extends BaseMain
 				} else throw new Error("Critical error. Not a possible value.");
 			}
 		} while(work);
-//		cardClient.newCard()
 	}
 
 	private void shutdown() {
