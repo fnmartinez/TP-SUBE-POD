@@ -4,5 +4,5 @@ public class Cache {
 
     private HashMap<UID, Double> operations;
 
-    
+
 }

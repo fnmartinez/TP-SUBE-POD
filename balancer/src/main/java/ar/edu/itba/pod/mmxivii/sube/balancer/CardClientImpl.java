@@ -5,6 +5,7 @@ import ar.edu.itba.pod.mmxivii.sube.common.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.rmi.ConnectException;
+import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UID;
@@ -76,29 +77,34 @@ public class CardClientImpl extends UnicastRemoteObject implements CardClient
 	@Override
 	public double travel(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
 	{
-		return getCardService().travel(id, description, amount);
+		try {
+			return getCardService().travel(id, description, amount);
+		} catch (NoSuchObjectException nsoe) {
+			System.out.println("Error while calling the service. " + nsoe.getMessage());
+			nsoe.printStackTrace();
+			return CardRegistry.CANNOT_PROCESS_REQUEST;
+		} catch (RemoteException re) {
+
+			return this.travel(id, description, amount);
+		}
 	}
 
 	@Override
-	public double recharge(@Nonnull UID id, @Nonnull String description, double amount)
-	{   CardService service;
-        service = getCardService();
-        try {
-            return service.recharge(id, description, amount);
-        } catch (RemoteException e) {
-            try {
-                cardServiceRegistry.unRegisterService(service);
-                return recharge(id,description,amount);
-            } catch (RemoteException e1) {
-                e1.printStackTrace();
-            }
-
-        }
-        return 0;
-    }
-
-	private CardService getCardService()
+	public double recharge(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
 	{
+		// @ToDo catch de excepciones
+		try {
+			return getCardService().recharge(id, description, amount);
+		} catch (NoSuchObjectException nsoe) {
+			System.out.println("Error while calling the service. " + nsoe.getMessage());
+			nsoe.printStackTrace();
+			return CardRegistry.CANNOT_PROCESS_REQUEST;
+		} catch (RemoteException re) {
+			return this.recharge(id, description, amount);
+		}
+	}
+
+	private CardService getCardService() throws NoSuchObjectException {
 		return cardServiceRegistry.getCardService();
 	}
 }
