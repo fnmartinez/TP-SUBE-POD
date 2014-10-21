@@ -71,6 +71,7 @@ public class Main extends BaseMain
 				} else throw new Error("Critical error. Not a possible value.");
 			}
 		} while(work);
+
 //		cardClient.newCard()
 	}
 

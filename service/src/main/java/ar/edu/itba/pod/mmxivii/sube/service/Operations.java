@@ -16,20 +16,25 @@ public class Operations {
 
     public Operations() throws IOException {
         CacheManager cacheManager = CacheManager.create();
+        for(String str: cacheManager.getCacheNames()){
+            System.out.println(str);
+        }
         cache = cacheManager.getCache("sampleCacheAsync");
-
-
     }
 
     public double addCardOperation(@Nonnull UID id, @Nonnull String description, double amount){
         Element elem;
+        double amnt;
         if((elem = cache.get(id)) != null){
-           cache.put(new Element(id, (Double) elem.getObjectValue() - amount));
-           return (Double)elem.getObjectValue() + amount;
+            System.out.println("la key esta en el cache, valor:"+ (Double)elem.getObjectValue());
+           cache.put(new Element(id, (Double) elem.getObjectValue() + amount));
+           amnt = (Double)elem.getObjectValue() + amount;
         }else{
+            System.out.println("la key no esta en el cache");
             cache.put(new Element(id,amount));
-            return amount;
+            amnt =  amount;
         }
+        return amnt;
     }
 
     public double getCardBalance(@Nonnull UID id){

@@ -80,11 +80,22 @@ public class CardClientImpl extends UnicastRemoteObject implements CardClient
 	}
 
 	@Override
-	public double recharge(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
-	{
-		// @ToDo catch de excepciones
-		return getCardService().recharge(id, description, amount);
-	}
+	public double recharge(@Nonnull UID id, @Nonnull String description, double amount)
+	{   CardService service;
+        service = getCardService();
+        try {
+            return service.recharge(id, description, amount);
+        } catch (RemoteException e) {
+            try {
+                cardServiceRegistry.unRegisterService(service);
+                return recharge(id,description,amount);
+            } catch (RemoteException e1) {
+                e1.printStackTrace();
+            }
+
+        }
+        return 0;
+    }
 
 	private CardService getCardService()
 	{
