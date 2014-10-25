@@ -15,7 +15,7 @@ public class Communicator extends ReceiverAdapter {
     private Stack<Operation> operations;
     private Cache cache;
     private HashSet<UID> reported;
-    public boolean syncMaster;
+    public Address coordinator;
 
     public Communicator(Cache cache) throws Exception{
         System.setProperty("java.net.preferIPv4Stack", "true");
@@ -29,16 +29,18 @@ public class Communicator extends ReceiverAdapter {
         this.channel.setName(nickname);
         this.channel.connect(channel);
         this.channel.setReceiver(this);
+        coordinator = this.channel.getView().getMembers().get(0);
         viewAccepted(this.channel.getView());
     }
 
+
     public void viewAccepted(View view) {
-        for(Address addr: view.getMembers()){
-            if(!members.contains(addr)){
-                this.members.add(addr);
-                System.out.println("Nueva Instancia: "+ addr);
-            }
+        members.addAll(view.getMembers());
+        members.retainAll(view.getMembers());
+        if(coordinator != view.getMembers().get(0)){
+            coordinator = view.getMembers().get(0);
         }
+
     }
 
     public void receive(Message msg) {
@@ -48,7 +50,7 @@ public class Communicator extends ReceiverAdapter {
                cache.addOperation((Operation) msg.getObject(), false);
            }else if(msg.getObject() instanceof String){
                String message = (String)msg.getObject();
-               if(message.compareTo("#sync") == 0 && syncMaster){
+               if(message.compareTo("#sync") == 0){
                        sendMessage(msg.getSrc(), cache.getMap());
                }
            }else if(msg.getObject() instanceof Map){
@@ -91,7 +93,9 @@ public class Communicator extends ReceiverAdapter {
 
     public void syncCache(){
         try {
-            broadcastMessage("#sync");
+            if(coordinator != this.channel.getAddress()) {
+                sendMessage(coordinator, "#sync");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

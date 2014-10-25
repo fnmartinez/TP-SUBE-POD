@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.UID;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class CardServiceImpl extends UnicastRemoteObject implements CardService
 {
@@ -16,14 +18,16 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
 	@Nonnull
 	private final CardRegistry cardRegistry;
     private Cache cache;
-    private Communicator communicator;
+    private final Queue<Operation> operationsQueue;
 
 	public CardServiceImpl(@Nonnull CardRegistry cardRegistry) throws IOException
 	{
 		super(0);
 		this.cardRegistry = cardRegistry;
         ConcurrentHashMap<UID, Double> operationMap = new ConcurrentHashMap();
+         operationsQueue = new ConcurrentLinkedQueue<>();
         this.cache = new Cache(operationMap);
+        new Thread(new Synchronization(operationsQueue, cardRegistry));
 
     }
 
@@ -40,9 +44,10 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
            Double value;
             if((value = cache.getBalance(id))!= null && value >= (op.getValue()*-1)){
                 cache.addOperation(op, true);
+                operationsQueue.add(op);
                 return value + op.getValue();
             }else{
-                System.out.println("Not enough cash");
+                System.out.println("Not enough cash, cardId: " + id);
             }
 
         return -1;
@@ -53,6 +58,7 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
     {
         Operation op = new Operation(id,description,amount);
             cache.addOperation(op, true);
+            operationsQueue.add(op);
             return cache.getBalance(id);
         }
 

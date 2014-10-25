@@ -17,6 +17,7 @@ public class Cache {
         try {
             this.communicator = new Communicator(this);
             communicator.connectToChannel("test"+ new Random().nextInt(), "clusterGroup");
+            communicator.syncCache();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -32,11 +33,11 @@ public class Cache {
     private void addCredit(UID id, double value){
         if (cardStatus.containsKey(id)) {
             Double credit = cardStatus.get(id);
-            cardStatus.replace(id, value, value + value);
-            System.out.println("existing card operation: " + value);
+            System.out.println(cardStatus.replace(id, credit, credit + value));
+            System.out.println("existing card operation: " + value + " card id: " + id);
         } else {
             cardStatus.put(id, value);
-            System.out.println("new card operation: "+ value);
+            System.out.println("new card operation: "+ value + " card id: " + id);
         }
     }
 
