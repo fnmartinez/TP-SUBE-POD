@@ -2,6 +2,8 @@ package ar.edu.itba.pod.mmxivii.sube.service;
 
 
 import ar.edu.itba.pod.mmxivii.sube.common.CardRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UID;
@@ -13,10 +15,16 @@ public class Synchronization implements Runnable{
     private final ConcurrentLinkedQueue<Node> operations;
     private final CardRegistry cardRegistry;
     private boolean coordinator = false;
+    private Communicator communicator;
+    private Logger logger = LoggerFactory.getLogger(Main.class);
 
     public Synchronization(CardRegistry cardRegistry){
         this.operations = new ConcurrentLinkedQueue<>();
         this.cardRegistry = cardRegistry;
+    }
+
+    public void setCommunicator(Communicator communicator){
+        this.communicator = communicator;
     }
 
     public List<Operation> getUncommitedOperations(){
@@ -41,11 +49,11 @@ public class Synchronization implements Runnable{
         }
     }
 
-    public void syncOperations(UID id, Long epoch){
+    public void syncOperations(Report report){
         synchronized (operations){
             for(Node node: operations){
-                if(node.id == id){
-                    if(node.syncUpToTimestamp(epoch) == 0){
+                if(node.id == report.getId()){
+                    if(node.syncUpToTimestamp(report.getTimestamp()) == 0){
                         operations.remove(node);
                     }
                 }
@@ -74,9 +82,10 @@ public class Synchronization implements Runnable{
                 Operation op = node.mergeOperations();
                 try {
                     double value = cardRegistry.addCardOperation(op.getId(), op.getDescription(), op.getValue());
-                    System.out.println("Operation returned: " + value);
+                    logger.info("Operation Reported id: "+ op.getId() + " value: " + value);
+                    communicator.reportSynchronization(new Report(op.getId(), op.getTimestamp()));
                 } catch (RemoteException e) {
-                    System.out.println("Server returned error, will try again later");
+                    logger.info("Server returned error, will try again later");
                     this.addOperation(op);
                 }
             }

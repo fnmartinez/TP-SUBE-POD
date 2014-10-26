@@ -56,8 +56,12 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
 	public synchronized double recharge(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
     {
         Operation op = new Operation(id,description,amount, System.currentTimeMillis());
-            cache.addOperation(op, true);
-            return cache.getBalance(id);
+        if(cache.getBalance(id)+amount > 100d){
+            System.out.println("can't recharge that much id: "+ id);
+            return -4d;
+        }
+        cache.addOperation(op, true);
+        return cache.getBalance(id);
         }
 
 }

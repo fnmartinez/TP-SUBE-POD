@@ -1,6 +1,9 @@
 package ar.edu.itba.pod.mmxivii.sube.service;
 
+
 import org.jgroups.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.print.attribute.HashPrintServiceAttributeSet;
 import java.rmi.server.UID;
@@ -13,12 +16,15 @@ public class Communicator extends ReceiverAdapter {
     private Cache cache;
     private HashSet<UID> reported;
     private Address coordinator;
+    private final Synchronization synchronization;
+    private Logger logger = LoggerFactory.getLogger(Main.class);
 
-    public Communicator(Cache cache) throws Exception{
+    public Communicator(Cache cache, Synchronization sync) throws Exception{
         System.setProperty("java.net.preferIPv4Stack", "true");
         channel = new JChannel();
         this.members = new HashSet<>();
         this.cache = cache;
+        this.synchronization = sync;
     }
 
     public void connectToChannel(String nickname, String channel) throws Exception{
@@ -37,7 +43,7 @@ public class Communicator extends ReceiverAdapter {
             coordinator = view.getMembers().get(0);
         }
         if(coordinator.compareTo(channel.getAddress()) == 0){
-            System.out.println("I am the coordinator");
+            logger.info("I am the Coordinator");
             cache.setCoordinatorStatus(true);
         }
 
@@ -46,8 +52,9 @@ public class Communicator extends ReceiverAdapter {
     public void receive(Message msg) {
        if(!msg.getSrc().equals(channel.getAddress())){
            if(msg.getObject() instanceof Operation) {
-               System.out.println("new message");
                cache.addOperation((Operation) msg.getObject(), false);
+           }else if(msg.getObject() instanceof Report){
+                synchronization.syncOperations((Report)msg.getObject());
            }else if(msg.getObject() instanceof String){
                String message = (String)msg.getObject();
                if(message.compareTo("#syncCache") == 0){
@@ -92,7 +99,14 @@ public class Communicator extends ReceiverAdapter {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
 
+    public void reportSynchronization(Report report){
+        try {
+            this.broadcastMessage(report);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void syncCache(){
