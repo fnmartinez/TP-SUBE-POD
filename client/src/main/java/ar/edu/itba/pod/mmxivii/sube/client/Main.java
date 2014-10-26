@@ -5,6 +5,8 @@ import ar.edu.itba.pod.mmxivii.sube.common.Card;
 import ar.edu.itba.pod.mmxivii.sube.common.CardClient;
 import ar.edu.itba.pod.mmxivii.sube.common.Utils;
 import com.google.common.collect.Iterables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -24,14 +26,14 @@ public class Main extends BaseMain
 	private final Map<String, Card> cards = new ConcurrentHashMap<>();
 	private final Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	private final Random random = new Random();
+	private final Logger logger = LoggerFactory.getLogger(Main.class);
 	private CardClient cardClient = null;
 	private boolean work = true;
 	private int creationP = 1;
 	private int rechargeP = creationP + 49;
 	private int travelP = rechargeP + 50;
 
-	private Main(@Nonnull String[] args) throws NotBoundException
-	{
+	private Main(@Nonnull String[] args) throws NotBoundException, InterruptedException {
 		super(args, DEFAULT_CLIENT_OPTIONS);
 		getRegistry();
 		cardClient = Utils.lookupObject(CARD_CLIENT_BIND);
@@ -40,6 +42,7 @@ public class Main extends BaseMain
 				executor.execute(new NewCardTask(cards));
 			}
 		}
+		Thread.sleep(1000);
 	}
 
 	public static void main(@Nonnull String[] args ) throws Exception
@@ -62,7 +65,7 @@ public class Main extends BaseMain
 				int keyIndex = random.nextInt(keysQty);
 				String key = Iterables.get(cards.keySet(), keyIndex);
 				final Card card = cards.get(key);
-				final double ammount = Math.abs(random.nextDouble());
+				final double ammount = createAmmount();
 				if (p < rechargeP) {
 					executor.execute(new CardRechargeTask(card, ammount));
 				} else if (p < travelP) {
@@ -70,6 +73,12 @@ public class Main extends BaseMain
 				} else throw new Error("Critical error. Not a possible value.");
 			}
 		} while(work);
+	}
+
+	private double createAmmount() {
+		double integer = random.nextInt(100);
+		double decimal = random.nextInt(100) / 100;
+		return integer + decimal;
 	}
 
 	private void shutdown() {
@@ -91,12 +100,16 @@ public class Main extends BaseMain
 		@Override
 		public void run() {
 			try {
+				logger.info("Creating new card! cardHolder: " + cardHolder + " cardLabel: " + cardLabel);
+				Thread.sleep(200);
 				final Card card = cardClient.newCard(cardHolder, cardLabel);
 				cards.put(cardHolder, card);
 			} catch (RemoteException e) {
-				System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+				logger.error("Remote exception. Balancer probably died. " + e.getMessage());
 				e.printStackTrace();
 				Main.this.shutdown();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 	}
@@ -115,11 +128,15 @@ public class Main extends BaseMain
 		public void run() {
 			synchronized (card) {
 				try {
+					logger.info("Recharging! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
+					Thread.sleep(200);
 					cardClient.recharge(card.getId(), "recharge", ammount);
 				} catch (RemoteException e) {
-					System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+					logger.error("Remote exception. Balancer probably died. " + e.getMessage());
 					e.printStackTrace();
 					Main.this.shutdown();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
 			}
 		}
@@ -138,11 +155,15 @@ public class Main extends BaseMain
 		public void run() {
 			synchronized (card) {
 				try {
+					logger.info("Travelling! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
+					Thread.sleep(200);
 					cardClient.travel(card.getId(), "travel", ammount);
 				} catch (RemoteException e) {
-					System.out.println("Remote exception. Balancer probably died. " + e.getMessage());
+					logger.error("Remote exception. Balancer probably died. " + e.getMessage());
 					e.printStackTrace();
 					Main.this.shutdown();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
 				}
 			}
 		}
