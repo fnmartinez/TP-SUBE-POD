@@ -61,7 +61,7 @@ public class Cache {
         if(cardStatus.containsKey(uid)){
             return cardStatus.get(uid);
         }
-        return null;
+        return 0d;
     }
 
     public void syncWithMap(Map<UID,Double> map){

@@ -1,8 +1,9 @@
 package ar.edu.itba.pod.mmxivii.sube.service;
 
+import java.io.Serializable;
 import java.rmi.server.UID;
 
-public class Report {
+public class Report implements Serializable{
 
     private final UID id;
     private final Long timestamp;
