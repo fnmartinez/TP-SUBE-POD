@@ -1,23 +1,26 @@
 package ar.edu.itba.pod.mmxivii.sube.service;
 
+import net.sf.ehcache.concurrent.Sync;
+
 import java.rmi.server.UID;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Cache {
 
     private ConcurrentHashMap<UID, Double> cardStatus;
     private Communicator communicator;
+    private Synchronization synchronization;
 
-    public Cache(ConcurrentHashMap<UID,Double> cardStatus){
+    public Cache(ConcurrentHashMap<UID,Double> cardStatus, Synchronization sync){
         this.cardStatus=cardStatus;
         try {
             this.communicator = new Communicator(this);
+            this.synchronization = sync;
             communicator.connectToChannel("test"+ new Random().nextInt(), "clusterGroup");
             communicator.syncCache();
+            communicator.syncSynchronizator();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -25,10 +28,15 @@ public class Cache {
 
     public synchronized void addOperation(Operation operation, boolean sync){
         addCredit(operation.getId(),operation.getValue());
+        synchronization.addOperation(operation);
         if(sync){
             communicator.reportOperation(operation);
         }
      }
+
+    public void setCoordinatorStatus(Boolean bool){
+        synchronization.setCoordinator(bool);
+    }
 
     private void addCredit(UID id, double value){
         if (cardStatus.containsKey(id)) {
@@ -55,6 +63,16 @@ public class Cache {
     public void syncWithMap(Map<UID,Double> map){
         for(UID uid: map.keySet()){
             addCredit(uid, map.get(uid));
+        }
+    }
+
+    public List<Operation> getUncommitedOperations(){
+        return synchronization.getUncommitedOperations();
+    }
+
+    public void syncSynchronizator(List<Operation> operations){
+        for(Operation op: operations){
+            synchronization.addOperation(op);
         }
     }
 }

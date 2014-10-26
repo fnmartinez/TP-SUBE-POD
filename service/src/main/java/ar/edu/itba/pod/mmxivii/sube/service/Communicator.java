@@ -4,10 +4,7 @@ import org.jgroups.*;
 
 import javax.print.attribute.HashPrintServiceAttributeSet;
 import java.rmi.server.UID;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
 
 public class Communicator extends ReceiverAdapter {
     JChannel channel;
@@ -15,14 +12,13 @@ public class Communicator extends ReceiverAdapter {
     private Stack<Operation> operations;
     private Cache cache;
     private HashSet<UID> reported;
-    public Address coordinator;
+    private Address coordinator;
 
     public Communicator(Cache cache) throws Exception{
         System.setProperty("java.net.preferIPv4Stack", "true");
         channel = new JChannel();
         this.members = new HashSet<>();
         this.cache = cache;
-
     }
 
     public void connectToChannel(String nickname, String channel) throws Exception{
@@ -40,6 +36,10 @@ public class Communicator extends ReceiverAdapter {
         if(coordinator != view.getMembers().get(0)){
             coordinator = view.getMembers().get(0);
         }
+        if(coordinator.compareTo(channel.getAddress()) == 0){
+            System.out.println("I am the coordinator");
+            cache.setCoordinatorStatus(true);
+        }
 
     }
 
@@ -50,11 +50,15 @@ public class Communicator extends ReceiverAdapter {
                cache.addOperation((Operation) msg.getObject(), false);
            }else if(msg.getObject() instanceof String){
                String message = (String)msg.getObject();
-               if(message.compareTo("#sync") == 0){
+               if(message.compareTo("#syncCache") == 0){
                        sendMessage(msg.getSrc(), cache.getMap());
+               }else if(message.compareTo("syncSync") == 0){
+                   sendMessage(msg.getSrc(), cache.getUncommitedOperations());
                }
            }else if(msg.getObject() instanceof Map){
                 cache.syncWithMap((Map)msg.getObject());
+           }else if(msg.getObject() instanceof List){
+               cache.syncSynchronizator((List<Operation>)msg.getObject());
            }
        }
     }
@@ -94,9 +98,19 @@ public class Communicator extends ReceiverAdapter {
     public void syncCache(){
         try {
             if(coordinator != this.channel.getAddress()) {
-                sendMessage(coordinator, "#sync");
+                sendMessage(coordinator, "#syncCache");
             }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void syncSynchronizator(){
+        try{
+            if(coordinator != this.channel.getAddress()){
+                sendMessage(coordinator, "#syncSync");
+            }
+        }catch (Exception e) {
             e.printStackTrace();
         }
     }

@@ -18,16 +18,16 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
 	@Nonnull
 	private final CardRegistry cardRegistry;
     private Cache cache;
-    private final Queue<Operation> operationsQueue;
 
 	public CardServiceImpl(@Nonnull CardRegistry cardRegistry) throws IOException
 	{
 		super(0);
 		this.cardRegistry = cardRegistry;
         ConcurrentHashMap<UID, Double> operationMap = new ConcurrentHashMap();
-         operationsQueue = new ConcurrentLinkedQueue<>();
-        this.cache = new Cache(operationMap);
-        new Thread(new Synchronization(operationsQueue, cardRegistry));
+        Synchronization sync = new Synchronization(cardRegistry);
+        (new Thread(sync)).start();
+        this.cache = new Cache(operationMap, sync);
+
 
     }
 
@@ -40,11 +40,10 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
 	@Override
 	public synchronized double travel(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
 	{
-        Operation op = new Operation(id,description,amount*-1);
+        Operation op = new Operation(id,description,amount*-1, System.currentTimeMillis());
            Double value;
             if((value = cache.getBalance(id))!= null && value >= (op.getValue()*-1)){
                 cache.addOperation(op, true);
-                operationsQueue.add(op);
                 return value + op.getValue();
             }else{
                 System.out.println("Not enough cash, cardId: " + id);
@@ -56,9 +55,8 @@ public class CardServiceImpl extends UnicastRemoteObject implements CardService
 	@Override
 	public synchronized double recharge(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
     {
-        Operation op = new Operation(id,description,amount);
+        Operation op = new Operation(id,description,amount, System.currentTimeMillis());
             cache.addOperation(op, true);
-            operationsQueue.add(op);
             return cache.getBalance(id);
         }
 
