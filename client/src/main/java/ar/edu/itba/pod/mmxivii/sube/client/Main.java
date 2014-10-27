@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.EOFException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Map;
@@ -17,12 +18,16 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static ar.edu.itba.pod.mmxivii.sube.common.Utils.*;
 
 public class Main extends BaseMain
 {
 	private static final int MIN_CLIENTS = 10;
+	private static final int MAX_CLIENTS = 100;
+	private static final int MAX_INTENTS = 10;
+	private static final AtomicInteger INTENTS = new AtomicInteger();
 	private final Map<String, Card> cards = new ConcurrentHashMap<>();
 	private final Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	private final Random random = new Random();
@@ -37,11 +42,6 @@ public class Main extends BaseMain
 		super(args, DEFAULT_CLIENT_OPTIONS);
 		getRegistry();
 		cardClient = Utils.lookupObject(CARD_CLIENT_BIND);
-		if (cards.isEmpty()) {
-			for (int i = 0; i < MIN_CLIENTS; i++) {
-				executor.execute(new NewCardTask(cards));
-			}
-		}
 		Thread.sleep(1000);
 	}
 
@@ -53,12 +53,17 @@ public class Main extends BaseMain
 
 	private void run() throws RemoteException
 	{
-		System.out.println("Starting Clients!");
+		logger.info("Starting Clients!");
+		if (cards.isEmpty()) {
+			for (int i = 0; i < MIN_CLIENTS; i++) {
+				new NewCardTask(cards).run();
+			}
+		}
+		logger.info("Finished creating initial clients");
 		do {
 			int p = random.nextInt(100);
-
-			if (p < creationP) {
-				executor.execute(new NewCardTask(cards));
+			if (p < creationP && cards.keySet().size() < MAX_CLIENTS) {
+				new NewCardTask(cards).run();
 			} else {
 				if (cards.keySet().isEmpty()) continue;;
 				int keysQty = cards.keySet().size();
@@ -85,7 +90,7 @@ public class Main extends BaseMain
 		work = false;
 	}
 
-	private class NewCardTask implements Runnable {
+	private class NewCardTask extends CardTask {
 
 		public final String cardHolder;
 		public final String cardLabel;
@@ -98,23 +103,14 @@ public class Main extends BaseMain
 		}
 
 		@Override
-		public void run() {
-			try {
-				logger.info("Creating new card! cardHolder: " + cardHolder + " cardLabel: " + cardLabel);
-				Thread.sleep(200);
-				final Card card = cardClient.newCard(cardHolder, cardLabel);
-				cards.put(cardHolder, card);
-			} catch (RemoteException e) {
-				logger.error("Remote exception. Balancer probably died. " + e.getMessage());
-				e.printStackTrace();
-				Main.this.shutdown();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+		protected void action() throws RemoteException {
+			logger.info("Creating new card! cardHolder: " + cardHolder + " cardLabel: " + cardLabel);
+			final Card card = cardClient.newCard(cardHolder, cardLabel);
+			cards.put(cardHolder, card);
 		}
 	}
 
-	private class CardRechargeTask implements Runnable {
+	private class CardRechargeTask extends CardTask {
 
 		private final Card card;
 		private final double ammount;
@@ -125,24 +121,15 @@ public class Main extends BaseMain
 		}
 
 		@Override
-		public void run() {
+		protected void action() throws RemoteException {
 			synchronized (card) {
-				try {
-					logger.info("Recharging! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
-					Thread.sleep(200);
-					cardClient.recharge(card.getId(), "recharge", ammount);
-				} catch (RemoteException e) {
-					logger.error("Remote exception. Balancer probably died. " + e.getMessage());
-					e.printStackTrace();
-					Main.this.shutdown();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				logger.info("Recharging! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
+				cardClient.recharge(card.getId(), "recharge", ammount);
 			}
 		}
 	}
 
-	private class CardTravelTask implements Runnable {
+	private class CardTravelTask extends CardTask {
 		private final Card card;
 		private final double ammount;
 
@@ -152,21 +139,32 @@ public class Main extends BaseMain
 		}
 
 		@Override
-		public void run() {
+		protected void action() throws RemoteException {
 			synchronized (card) {
-				try {
-					logger.info("Travelling! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
-					Thread.sleep(200);
-					cardClient.travel(card.getId(), "travel", ammount);
-				} catch (RemoteException e) {
-					logger.error("Remote exception. Balancer probably died. " + e.getMessage());
-					e.printStackTrace();
+				logger.info("Travelling! cardHolder: " + card.getCardHolder() + " cardLabel: " + card.getLabel() + " ammount: " + ammount);
+				cardClient.travel(card.getId(), "travel", ammount);
+			}
+		}
+	}
+
+	private abstract class CardTask implements Runnable {
+
+		@Override
+		public  void run() {
+			try {
+				action();
+				Main.INTENTS.set(0);
+			} catch (RemoteException e) {
+				logger.error("Remote exception. Balancer probably died. " + e.getMessage());
+				e.printStackTrace();
+				if (Main.INTENTS.incrementAndGet() == MAX_INTENTS) {
+					logger.info("Max itents to communicate with balancer reached. Balancer is dead, we're shutting down.");
 					Main.this.shutdown();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
 				}
 			}
 		}
+
+		protected abstract void action() throws RemoteException;
 	}
 
 }

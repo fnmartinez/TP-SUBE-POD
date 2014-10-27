@@ -2,24 +2,20 @@ package ar.edu.itba.pod.mmxivii.sube.balancer;
 
 import ar.edu.itba.pod.mmxivii.sube.common.CardService;
 import ar.edu.itba.pod.mmxivii.sube.common.CardServiceRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-<<<<<<< HEAD
 import java.util.*;
-=======
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
->>>>>>> a09c37886c3fa0ed4a003df2dc9465624e4411f2
 
 public class CardServiceRegistryImpl extends UnicastRemoteObject implements CardServiceRegistry
 {
 	private static final long serialVersionUID = 2473638728674152366L;
+	private final Logger LOGGER = LoggerFactory.getLogger(CardServiceRegistryImpl.class);
 	private final AtomicInteger index = new AtomicInteger(0);
 	private final List<CardService> serviceList = Collections.synchronizedList(new ArrayList<CardService>());
 
@@ -28,12 +24,14 @@ public class CardServiceRegistryImpl extends UnicastRemoteObject implements Card
 	@Override
 	public void registerService(@Nonnull CardService service) throws RemoteException
 	{
+		LOGGER.info("Registering new service. " + service);
 		serviceList.add(service);
 	}
 
 	@Override
 	public void unRegisterService(@Nonnull CardService service) throws RemoteException
 	{
+		LOGGER.info("Unregistering service. " + service);
 		index.decrementAndGet();
 		serviceList.remove(service);
 	}
