@@ -4,6 +4,7 @@ import ar.edu.itba.pod.mmxivii.sube.common.*;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.imageio.spi.ServiceRegistry;
 import java.rmi.ConnectException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
@@ -77,15 +78,19 @@ public class CardClientImpl extends UnicastRemoteObject implements CardClient
 	@Override
 	public double travel(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
 	{
+		CardService service = null;
 		try {
-			return getCardService().travel(id, description, amount);
+			service = getCardService();
+			return service.travel(id, description, amount);
 		} catch (NoSuchObjectException nsoe) {
 			System.out.println("Error while calling the service. " + nsoe.getMessage());
 			nsoe.printStackTrace();
 			return CardRegistry.CANNOT_PROCESS_REQUEST;
 		} catch (RemoteException re) {
-
+			cardServiceRegistry.unRegisterService(service);
 			return this.travel(id, description, amount);
+		} catch (StackOverflowError soe) {
+			return CardRegistry.CANNOT_PROCESS_REQUEST;
 		}
 	}
 
@@ -93,14 +98,19 @@ public class CardClientImpl extends UnicastRemoteObject implements CardClient
 	public double recharge(@Nonnull UID id, @Nonnull String description, double amount) throws RemoteException
 	{
 		// @ToDo catch de excepciones
+		CardService service = null;
 		try {
-			return getCardService().recharge(id, description, amount);
+			service = getCardService();
+			return service.recharge(id, description, amount);
 		} catch (NoSuchObjectException nsoe) {
 			System.out.println("Error while calling the service. " + nsoe.getMessage());
 			nsoe.printStackTrace();
 			return CardRegistry.CANNOT_PROCESS_REQUEST;
 		} catch (RemoteException re) {
+			cardServiceRegistry.unRegisterService(service);
 			return this.recharge(id, description, amount);
+		} catch (StackOverflowError soe) {
+			return CardRegistry.CANNOT_PROCESS_REQUEST;
 		}
 	}
 

@@ -26,7 +26,8 @@ public class Main extends BaseMain
 {
 	private static final int MIN_CLIENTS = 10;
 	private static final int MAX_CLIENTS = 100;
-	private static final int MAX_INTENTS = 10;
+	private static final int MAX_INTENTS = 100;
+	private static final int TASK_SLEEP_MS = 500;
 	private static final AtomicInteger INTENTS = new AtomicInteger();
 	private final Map<String, Card> cards = new ConcurrentHashMap<>();
 	private final Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -152,6 +153,7 @@ public class Main extends BaseMain
 		@Override
 		public  void run() {
 			try {
+				Thread.sleep(TASK_SLEEP_MS);
 				action();
 				Main.INTENTS.set(0);
 			} catch (RemoteException e) {
@@ -161,6 +163,8 @@ public class Main extends BaseMain
 					logger.info("Max itents to communicate with balancer reached. Balancer is dead, we're shutting down.");
 					Main.this.shutdown();
 				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 
