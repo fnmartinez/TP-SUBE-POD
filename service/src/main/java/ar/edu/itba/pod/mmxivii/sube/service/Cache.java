@@ -31,11 +31,16 @@ public class Cache {
     }
 
     public synchronized void addOperation(Operation operation, boolean sync){
-        addCredit(operation.getId(),operation.getValue());
-        synchronization.addOperation(operation);
+        synchronized (cardStatus) {
+            addCredit(operation.getId(), operation.getValue());
+        }
+        synchronized (synchronization) {
+            synchronization.addOperation(operation);
+        }
         if(sync){
             communicator.reportOperation(operation);
         }
+        logger.info("Operation id: " + operation.getId() + " value: " + operation.getValue() + " timestamp: "+ operation.getTimestamp());
      }
 
     public void setCoordinatorStatus(Boolean bool){
@@ -46,10 +51,9 @@ public class Cache {
         if (cardStatus.containsKey(id)) {
             Double credit = cardStatus.get(id);
             cardStatus.replace(id, credit, credit + value);
-            logger.info("existing card operation: " + value + " card id: " + id);
+
         } else {
             cardStatus.put(id, value);
-            logger.info("new card operation: "+ value + " card id: " + id);
         }
     }
 
@@ -58,25 +62,34 @@ public class Cache {
     }
 
     public Double getBalance(UID uid){
-        if(cardStatus.containsKey(uid)){
-            return cardStatus.get(uid);
+        synchronized (cardStatus) {
+            if (cardStatus.containsKey(uid)) {
+                return cardStatus.get(uid);
+            }
         }
         return 0d;
     }
 
     public void syncWithMap(Map<UID,Double> map){
-        for(UID uid: map.keySet()){
-            addCredit(uid, map.get(uid));
+        synchronized (cardStatus) {
+            for (UID uid : map.keySet()) {
+                logger.info("Starting credit id: " + uid + " value: "+ map.get(uid));
+                addCredit(uid, map.get(uid));
+            }
         }
     }
 
     public List<Operation> getUncommitedOperations(){
-        return synchronization.getUncommitedOperations();
+        synchronized (synchronization) {
+            return synchronization.getUncommitedOperations();
+        }
     }
 
     public void syncSynchronizator(List<Operation> operations){
-        for(Operation op: operations){
-            synchronization.addOperation(op);
+        synchronized (synchronization) {
+            for (Operation op : operations) {
+                synchronization.addOperation(op);
+            }
         }
     }
 }

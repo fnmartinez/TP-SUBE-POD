@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Synchronization implements Runnable{
 
-    private final ConcurrentLinkedQueue<Node> operations;
+    private final ConcurrentLinkedQueue<Operation> operations;
     private final CardRegistry cardRegistry;
     private boolean coordinator = false;
     private Communicator communicator;
@@ -30,34 +30,20 @@ public class Synchronization implements Runnable{
     public List<Operation> getUncommitedOperations(){
         List<Operation> uncommitedOperations = new LinkedList<>();
         synchronized (operations){
-            for(Node node: operations){
-                uncommitedOperations.addAll(node.operations);
-            }
+            uncommitedOperations.addAll(operations);
         }
         return uncommitedOperations;
     }
 
     public void addOperation(Operation op){
         synchronized (operations) {
-           for(Node node: operations){
-               if(node.id == op.getId()){
-                   node.addOperation(op);
-                   return;
-               }
-           }
-           operations.add(new Node(op));
+           operations.add(op);
         }
     }
 
     public void syncOperations(Report report){
         synchronized (operations){
-            for(Node node: operations){
-                if(node.id == report.getId()){
-                    if(node.syncUpToTimestamp(report.getTimestamp()) == 0){
-                        operations.remove(node);
-                    }
-                }
-            }
+            operations.remove(report);
         }
     }
 
@@ -75,76 +61,19 @@ public class Synchronization implements Runnable{
                     e.printStackTrace();
                 }
             } else {
-                Node node;
+                Operation op;
                 synchronized (operations) {
-                    node = operations.poll();
+                    op = operations.poll();
                 }
-                Operation op = node.mergeOperations();
                 try {
                     double value = cardRegistry.addCardOperation(op.getId(), op.getDescription(), op.getValue());
-                    logger.info("Operation Reported id: "+ op.getId() + " value: " + value);
-                    communicator.reportSynchronization(new Report(op.getId(), op.getTimestamp()));
+                    communicator.reportSynchronization(new Report(op));
+                    logger.info("Operation Reported id: "+ op.getId() + " value: " + value + " timestamp: "+ op.getTimestamp());
                 } catch (RemoteException e) {
                     logger.info("Server returned error, will try again later");
                     this.addOperation(op);
                 }
             }
-        }
-    }
-
-    private class Node{
-        private SortedSet<Operation> operations = Collections.synchronizedSortedSet(new TreeSet<Operation>(new Comparator<Operation>() {
-            @Override
-            public int compare(Operation o1, Operation o2) {
-                return o1.getTimestamp().compareTo(o2.getTimestamp());
-            }
-        }));
-
-        private UID id;
-
-        public Node(Operation op){
-            this.id = op.getId();
-            operations.add(op);
-        }
-
-        public void addOperation(Operation op){
-            operations.add(op);
-        }
-
-        public Operation mergeOperations(){
-            Double sum = 0d;
-            for(Operation op: operations){
-                sum += op.getValue();
-            }
-            return new Operation(operations.last().getId(), "merged", sum, operations.last().getTimestamp());
-        }
-
-        public int syncUpToTimestamp(Long epoch){
-            for(Operation op: operations){
-                if(op.getTimestamp().compareTo(epoch) <= 0){
-                    operations.remove(operations.first());
-                }else{
-                    return operations.size();
-                }
-            }
-            return operations.size();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            Node node = (Node) o;
-
-            if (!id.equals(node.id)) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            return id.hashCode();
         }
     }
 }

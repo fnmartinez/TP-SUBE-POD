@@ -51,21 +51,21 @@ public class Communicator extends ReceiverAdapter {
 
     public void receive(Message msg) {
        if(!msg.getSrc().equals(channel.getAddress())){
-           if(msg.getObject() instanceof Operation) {
+           if(msg.getObject() instanceof Report){
+               synchronization.syncOperations((Report)msg.getObject());
+           }else if(msg.getObject() instanceof Operation) {
                cache.addOperation((Operation) msg.getObject(), false);
-           }else if(msg.getObject() instanceof Report){
-                synchronization.syncOperations((Report)msg.getObject());
            }else if(msg.getObject() instanceof String){
                String message = (String)msg.getObject();
                if(message.compareTo("#syncCache") == 0){
                        sendMessage(msg.getSrc(), cache.getMap());
-               }else if(message.compareTo("syncSync") == 0){
+               }else if(message.compareTo("#syncSync") == 0){
                    sendMessage(msg.getSrc(), cache.getUncommitedOperations());
                }
            }else if(msg.getObject() instanceof Map){
-                cache.syncWithMap((Map)msg.getObject());
+                cache.syncWithMap((Map) msg.getObject());
            }else if(msg.getObject() instanceof List){
-               cache.syncSynchronizator((List<Operation>)msg.getObject());
+               cache.syncSynchronizator((List<Operation>) msg.getObject());
            }
        }
     }

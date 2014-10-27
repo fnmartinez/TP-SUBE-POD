@@ -32,4 +32,28 @@ public class Operation implements Serializable{
     public Long getTimestamp(){
         return timestamp;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || !(o instanceof Operation)) return false;
+
+        Operation operation = (Operation) o;
+        if (Double.compare(operation.value, value) != 0) return false;
+        if (!id.equals(operation.id)) return false;
+        if (!timestamp.equals(operation.timestamp)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = id.hashCode();
+        temp = Double.doubleToLongBits(value);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        result = 31 * result + timestamp.hashCode();
+        return result;
+    }
 }
