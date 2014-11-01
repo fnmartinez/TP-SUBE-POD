@@ -54,11 +54,18 @@ public abstract class BaseMain
 		rmiRegistry = Utils.createRegistry(port);
 	}
 
-	protected void bindObject(@Nonnull final String name, @Nonnull final RemoteObject remote)
-	{
+	protected void bindObject(@Nonnull final String name, @Nonnull final RemoteObject remote) {
 		try {
 			rmiRegistry.bind(name, remote);
-		} catch (AlreadyBoundException | RemoteException e) {
+		} catch (AlreadyBoundException abe) {
+			try {
+				rmiRegistry.unbind(name);
+				rmiRegistry.bind(name, remote);
+				return;
+			} catch (Exception e1) {
+				throw new RuntimeException(e1);
+			}
+		} catch (RemoteException e) {
 			throw new RuntimeException(e);
 		}
 	}
